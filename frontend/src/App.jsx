@@ -1,9 +1,10 @@
-import { useAuth } from "@clerk/clerk-react";
+import { useAuth } from "./hooks/useAuth";
 import { Navigate, Route, Routes } from "react-router";
 
 import AuthPage from "./pages/AuthPage";
 import CallPage from "./pages/CallPage";
 import HomePage from "./pages/HomePage";
+import PageLoader from "./components/PageLoader";
 
 import * as Sentry from "@sentry/react";
 
@@ -12,7 +13,7 @@ const SentryRoutes = Sentry.withSentryReactRouterV7Routing(Routes);
 const App = () => {
   const { isSignedIn, isLoaded } = useAuth();
 
-  if (!isLoaded) return null;
+  if (!isLoaded) return <PageLoader />;
 
   return (
     <SentryRoutes>
@@ -33,22 +34,3 @@ const App = () => {
 };
 
 export default App;
-
-// first version of routing:
-// return (
-//   <>
-//     <SignedIn>
-//       <SentryRoutes>
-//         <Route path="/" element={<HomePage />} />
-//         <Route path="/auth" element={<Navigate to={"/"} replace />} />
-//       </SentryRoutes>
-//     </SignedIn>
-
-//     <SignedOut>
-//       <SentryRoutes>
-//         <Route path="/auth" element={<AuthPage />} />
-//         <Route path="*" element={<Navigate to={"/auth"} replace />} />
-//       </SentryRoutes>
-//     </SignedOut>
-//   </>
-// );

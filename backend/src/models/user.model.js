@@ -6,19 +6,22 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
+      lowercase: true,
+      trim: true,
+    },
+    password: {
+      type: String,
+      required: true,
+      select: false,
     },
     name: {
       type: String,
       required: true,
+      trim: true,
     },
     image: {
       type: String,
-      required: true,
-    },
-    clerkId: {
-      type: String,
-      required: true,
-      unique: true,
+      default: "",
     },
   },
   { timestamps: true }

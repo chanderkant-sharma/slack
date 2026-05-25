@@ -1,38 +1,107 @@
-import { createContext, useEffect } from "react";
-import { useAuth } from "@clerk/clerk-react";
+import { createContext, useCallback, useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { axiosInstance } from "../lib/axios";
-import toast from "react-hot-toast";
+import { getMe, login as loginApi, register as registerApi } from "../lib/api";
 
-const AuthContext = createContext({});
+const TOKEN_KEY = "auth_token";
+
+export const AuthContext = createContext(null);
 
 export default function AuthProvider({ children }) {
-  const { getToken } = useAuth();
+  const [user, setUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  const setSession = useCallback((token, userData) => {
+    localStorage.setItem(TOKEN_KEY, token);
+    setUser(userData);
+  }, []);
+
+  const clearSession = useCallback(() => {
+    localStorage.removeItem(TOKEN_KEY);
+    setUser(null);
+    queryClient.clear();
+  }, [queryClient]);
+
+  const login = useCallback(
+    async (email, password) => {
+      const { token, user: userData } = await loginApi(email, password);
+      setSession(token, userData);
+      return userData;
+    },
+    [setSession]
+  );
+
+  const register = useCallback(
+    async (name, email, password) => {
+      const { token, user: userData } = await registerApi(name, email, password);
+      setSession(token, userData);
+      return userData;
+    },
+    [setSession]
+  );
+
+  const logout = useCallback(() => {
+    clearSession();
+  }, [clearSession]);
 
   useEffect(() => {
-    // setup axios interceptor
+    const requestInterceptor = axiosInstance.interceptors.request.use((config) => {
+      const token = localStorage.getItem(TOKEN_KEY);
+      if (token) config.headers.Authorization = `Bearer ${token}`;
+      return config;
+    });
 
-    const interceptor = axiosInstance.interceptors.request.use(
-      async (config) => {
-        try {
-          const token = await getToken();
-          if (token) config.headers.Authorization = `Bearer ${token}`;
-        } catch (error) {
-          if (error.message?.includes("auth") || error.message?.includes("token")) {
-            toast.error("Authentication issue. Please refresh the page.");
-          }
-          console.log("Error getting token:", error);
-        }
-        return config;
-      },
+    const responseInterceptor = axiosInstance.interceptors.response.use(
+      (response) => response,
       (error) => {
-        console.error("Axios request error:", error);
+        if (error.response?.status === 401 && localStorage.getItem(TOKEN_KEY)) {
+          clearSession();
+        }
         return Promise.reject(error);
       }
     );
 
-    // cleanup function to remove the interceptor, this is important to avoid memory leaks
-    return () => axiosInstance.interceptors.request.eject(interceptor);
-  }, [getToken]);
+    return () => {
+      axiosInstance.interceptors.request.eject(requestInterceptor);
+      axiosInstance.interceptors.response.eject(responseInterceptor);
+    };
+  }, [clearSession]);
 
-  return <AuthContext.Provider value={{}}>{children}</AuthContext.Provider>;
+  useEffect(() => {
+    const initAuth = async () => {
+      const token = localStorage.getItem(TOKEN_KEY);
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const { user: userData } = await getMe();
+        setUser(userData);
+      } catch {
+        clearSession();
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initAuth();
+  }, [clearSession]);
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        isLoading,
+        isSignedIn: !!user,
+        isLoaded: !isLoading,
+        login,
+        register,
+        logout,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 }

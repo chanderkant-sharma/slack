@@ -4,13 +4,9 @@ import { ENV } from "../config/env.js";
 const streamClient = StreamChat.getInstance(ENV.STREAM_API_KEY, ENV.STREAM_API_SECRET);
 
 export const upsertStreamUser = async (userData) => {
-  try {
-    await streamClient.upsertUser(userData);
-    console.log("Stream user upserted successfully:", userData.name);
-    return userData;
-  } catch (error) {
-    console.log("Error upserting Stream user:", error);
-  }
+  await streamClient.upsertUser(userData);
+  console.log("Stream user upserted successfully:", userData.name);
+  return userData;
 };
 
 export const deleteStreamUser = async (userId) => {
@@ -23,19 +19,18 @@ export const deleteStreamUser = async (userId) => {
 };
 
 export const generateStreamToken = (userId) => {
-  try {
-    const userIdString = userId.toString();
-    return streamClient.createToken(userIdString);
-  } catch (error) {
-    console.log("Error generating Stream token:", error);
-    return null;
-  }
+  const userIdString = userId.toString();
+  return streamClient.createToken(userIdString);
 };
 
 export const addUserToPublicChannels = async (newUserId) => {
   const publicChannels = await streamClient.queryChannels({ discoverable: true });
 
   for (const channel of publicChannels) {
-    await channel.addMembers([newUserId]);
+    try {
+      await channel.addMembers([newUserId]);
+    } catch (error) {
+      console.log(`Could not add user to channel ${channel.id}:`, error.message);
+    }
   }
 };

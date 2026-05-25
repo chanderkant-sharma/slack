@@ -1,14 +1,17 @@
 import { HashIcon, LockIcon, UsersIcon, PinIcon, VideoIcon } from "lucide-react";
 import { useChannelStateContext } from "stream-chat-react";
 import { useState } from "react";
-import { useUser } from "@clerk/clerk-react";
+import { useAuth } from "../hooks/useAuth";
 import MembersModal from "./MembersModal";
 import PinnedMessagesModal from "./PinnedMessagesModal";
 import InviteModal from "./InviteModal";
 
+const isDirectMessage = (channel) =>
+  channel.data?.member_count === 2 && !channel.data?.name;
+
 const CustomChannelHeader = () => {
   const { channel } = useChannelStateContext();
-  const { user } = useUser();
+  const { user } = useAuth();
 
   const memberCount = Object.keys(channel.state.members).length;
 
@@ -21,7 +24,7 @@ const CustomChannelHeader = () => {
     (member) => member.user.id !== user.id
   );
 
-  const isDM = channel.data?.member_count === 2 && channel.data?.id.includes("user_");
+  const isDM = isDirectMessage(channel);
 
   const handleShowPinned = async () => {
     const channelState = await channel.query();
